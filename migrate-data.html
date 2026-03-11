@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Data Migration Tool</title>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .success {
+            color: green;
+            padding: 10px;
+            background: #d4edda;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .error {
+            color: red;
+            padding: 10px;
+            background: #f8d7da;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔄 LocalStorage to Database Migration</h1>
+        <p>This tool will migrate your service requests from localStorage to the MySQL database.</p>
+
+        <div id="status"></div>
+
+        <h3>Step 1: View LocalStorage Data</h3>
+        <button onclick="viewLocalData()">View LocalStorage Requests</button>
+        <pre id="localData"></pre>
+
+        <h3>Step 2: Migrate to Database</h3>
+        <button onclick="migrateData()">Migrate All Requests</button>
+        <div id="migrationResult"></div>
+
+        <h3>Step 3: Clear Old Data (Optional)</h3>
+        <button onclick="clearLocalStorage()" style="background: #dc3545;">Clear LocalStorage</button>
+    </div>
+
+    <script>
+        function viewLocalData() {
+            const requests = JSON.parse(localStorage.getItem('shreek_requests') || '[]');
+            document.getElementById('localData').textContent = JSON.stringify(requests, null, 2);
+            document.getElementById('status').innerHTML = `<div class="success">Found ${requests.length} requests in localStorage</div>`;
+        }
+
+        async function migrateData() {
+            const requests = JSON.parse(localStorage.getItem('shreek_requests') || '[]');
+            const resultDiv = document.getElementById('migrationResult');
+            resultDiv.innerHTML = '<p>Migrating...</p>';
+
+            if (requests.length === 0) {
+                resultDiv.innerHTML = '<div class="error">No requests found in localStorage</div>';
+                return;
+            }
+
+            let successCount = 0;
+            let errorCount = 0;
+            let results = [];
+
+            for (const req of requests) {
+                try {
+                    const formData = new FormData();
+                    formData.append('name', req.clientName || 'Unknown');
+                    formData.append('email', req.clientContact ? req.clientContact.split('/')[1]?.trim() || 'unknown@email.com' : 'unknown@email.com');
+                    formData.append('phone', req.clientContact ? req.clientContact.split('/')[0]?.trim() || '0000000000' : '0000000000');
+                    formData.append('address', req.clientAddress || 'Not specified');
+                    formData.append('service', req.service || 'General Service');
+                    formData.append('message', req.details || 'No details provided');
+                    formData.append('reqDate', req.reqDate || new Date().toISOString().split('T')[0]);
+
+                    const response = await fetch('backend/process-service-request.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        successCount++;
+                        results.push(`✅ Migrated: ${req.clientName}`);
+                    } else {
+                        errorCount++;
+                        results.push(`❌ Failed: ${req.clientName} - ${result.message}`);
+                    }
+                } catch (error) {
+                    errorCount++;
+                    results.push(`❌ Error: ${req.clientName} - ${error.message}`);
+                }
+            }
+
+            resultDiv.innerHTML = `
+                <div class="success">
+                    <h4>Migration Complete!</h4>
+                    <p>✅ Successfully migrated: ${successCount}</p>
+                    <p>❌ Failed: ${errorCount}</p>
+                </div>
+                <pre>${results.join('\n')}</pre>
+            `;
+        }
+
+        function clearLocalStorage() {
+            if (confirm('Are you sure? This will delete all localStorage requests. Make sure you migrated them first!')) {
+                localStorage.removeItem('shreek_requests');
+                alert('LocalStorage cleared!');
+                viewLocalData();
+            }
+        }
+
+        // Auto-load data on page load
+        window.onload = viewLocalData;
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,2 @@
+[01-Feb-2026 16:34:28 Asia/Kolkata] PHP Notice:  session_start(): Ignoring session_start() because a session is already active in D:\Project Deployment\shreekrishna2.0\backend\logout.php on line 5
+[01-Feb-2026 16:45:22 Asia/Kolkata] PHP Notice:  session_start(): Ignoring session_start() because a session is already active in D:\Project Deployment\shreekrishna2.0\backend\logout.php on line 5
